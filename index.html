@@ -31,7 +31,6 @@
         <ul class="rules-list">
           <li><span class="pt pt-3">+1元</span> 比分完全猜对（如预测 2-1，实际 2-1），奖金 +1 元</li>
           <li><span class="pt pt-0">0元</span> 比分没对就没钱，猜对胜负也不算</li>
-          <li><span class="pt pt-c">荣誉</span> 冠军预测仅供吹牛，不计钱（想计钱可改 <code>js/app.js</code> 里的 <code>PT_CHAMPION</code>）</li>
         </ul>
         <h3>淘汰赛说明</h3>
         <ul class="rules-list plain">
@@ -41,9 +40,10 @@
         </ul>
         <h3>怎么玩</h3>
         <ol class="rules-list plain">
-          <li>在「填写预测」页选/输入你的名字，填上每场比分，点「生成 predictions.js」复制内容。</li>
+          <li>在「填写预测」页下拉框选自己（仅限 RiT / ST / RT / ArP / AP / SP / NP 七人），填比分，点「生成 predictions.js」复制内容。</li>
           <li>把内容发给管理员（或自己提交到仓库），替换 <code>data/predictions.js</code> 后页面自动更新。</li>
-          <li>每场比赛开赛前提交才有效，开赛后再改不算数（靠自觉，朋友间诚信第一 😄）。</li>
+          <li>可以一场一场提交：填几场交几场，没填的以后再来。<b>已提交的场次锁定不能改，已出赛果的场次不能再提交。</b></li>
+          <li>开赛后、管理员还没录比分前的空档请自觉别钻 😄，朋友间诚信第一。</li>
           <li>管理员在「录入赛果」页维护真实比分、淘汰赛对阵和最终冠军。</li>
         </ol>
       </div>
@@ -56,9 +56,12 @@
 
   <div id="toast"></div>
 
-  <script src="data/matches.js"></script>
-  <script src="data/predictions.js"></script>
-  <script src="data/results.js"></script>
+  <script>
+    // 数据文件加缓存戳，保证每次打开都加载最新的预测和赛果
+    ["data/matches.js", "data/predictions.js", "data/results.js"].forEach(function (f) {
+      document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>');
+    });
+  </script>
   <script src="js/app.js"></script>
 </body>
 </html>

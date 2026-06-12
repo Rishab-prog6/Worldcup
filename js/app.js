@@ -5,7 +5,6 @@
   // ===== 计分规则（想改规则只改这里，单位：元） =====
   var PT_EXACT = 1;     // 比分全对 +1 元
   var PT_OUTCOME = 0;   // 仅胜平负对，不得钱
-  var PT_CHAMPION = 0;  // 冠军预测仅供娱乐，不计钱
   var UNIT = "元";
 
   var STAGE_NAMES = {
@@ -14,11 +13,13 @@
   };
   var STAGE_ORDER = ["group", "r32", "r16", "qf", "sf", "third", "final"];
 
+  // 固定玩家名单（只有这七个人能玩）
+  var PLAYERS = ["RiT", "ST", "RT", "ArP", "AP", "SP", "NP"];
+
   var MATCHES = window.WC_MATCHES || [];
   var PREDICTIONS = window.WC_PREDICTIONS || {};
-  var RESULTS = window.WC_RESULTS || { champion: "", scores: {}, teams: {} };
+  var RESULTS = window.WC_RESULTS || { scores: {}, teams: {} };
   var TEAMS = window.WC_TEAMS || [];
-  var PLAYERS = Object.keys(PREDICTIONS);
 
   // ===== 工具 =====
   function $(sel) { return document.querySelector(sel); }
@@ -78,10 +79,7 @@
         if (t === "exact") exact++;
         else if (t === "outcome") outcome++;
       });
-      var champ = (PREDICTIONS[name] || {}).champion || "";
-      var champHit = RESULTS.champion && champ === RESULTS.champion;
-      if (champHit) total += PT_CHAMPION;
-      return { name: name, total: total, exact: exact, outcome: outcome, predicted: predicted, champion: champ, champHit: champHit };
+      return { name: name, total: total, exact: exact, outcome: outcome, predicted: predicted };
     }).sort(function (a, b) {
       return b.total - a.total || b.exact - a.exact || a.name.localeCompare(b.name, "zh");
     });
@@ -112,11 +110,10 @@
     var finished = MATCHES.filter(function (m) { return resultOf(m); }).length;
     var rows = board.map(function (p, i) {
       return "<tr><td>" + (i + 1) + "</td><td><b>" + esc(p.name) + "</b></td><td>" + p.total + "</td>" +
-        "<td>" + p.exact + "</td><td>" + p.outcome + "</td><td>" + p.predicted + "</td>" +
-        "<td>" + (p.champion ? esc(p.champion) + (p.champHit ? " ✅" : "") : "—") + "</td></tr>";
+        "<td>" + p.exact + "</td><td>" + p.outcome + "</td><td>" + p.predicted + "</td></tr>";
     }).join("");
     var table = '<div class="card"><h2>明细（已完赛 ' + finished + ' / ' + MATCHES.length + ' 场）</h2>' +
-      '<div class="table-wrap"><table><thead><tr><th>排名</th><th>玩家</th><th>奖金(' + UNIT + ')</th><th>比分全对</th><th>仅胜负对</th><th>已预测场次</th><th>冠军预测</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table><thead><tr><th>排名</th><th>玩家</th><th>奖金(' + UNIT + ')</th><th>比分全对</th><th>仅胜负对</th><th>已预测场次</th></tr></thead><tbody>' +
       rows + "</tbody></table></div></div>";
 
     el.innerHTML = podium + bars + table;
@@ -179,29 +176,20 @@
   }
   function saveDraft(d) { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); }
 
-  function teamOptions(selected) {
-    return '<option value="">— 选择冠军 —</option>' + TEAMS.map(function (t) {
-      return '<option value="' + esc(t) + '"' + (t === selected ? " selected" : "") + ">" + esc(t) + "</option>";
-    }).join("");
-  }
-
   function renderPredict() {
     var draft = loadDraft();
     var name = draft.name || "";
-    var data = (name && PREDICTIONS[name]) ? PREDICTIONS[name] : {};
-    var champ = (draft.champion != null) ? draft.champion : (data.champion || "");
 
-    var playerOpts = PLAYERS.map(function (p) {
-      return '<option value="' + esc(p) + '">' + esc(p) + "</option>";
+    var playerOpts = '<option value="">— 我是谁 —</option>' + PLAYERS.map(function (p) {
+      return '<option value="' + esc(p) + '"' + (p === name ? " selected" : "") + ">" + esc(p) + "</option>";
     }).join("");
 
     var html = '<div class="card"><h2>✍️ 填写我的预测</h2>' +
       '<div class="form-row"><label>我的名字</label>' +
-      '<input type="text" id="pname" placeholder="输入名字（新玩家直接输入）" list="player-list" value="' + esc(name) + '">' +
-      '<datalist id="player-list">' + playerOpts + "</datalist>" +
-      '<label>🏆 冠军预测</label><select id="pchampion">' + teamOptions(champ) + "</select></div>" +
-      '<p class="hint">填好比分后点底部「生成 predictions.js」，把弹出的内容整段发给管理员替换 <code>data/predictions.js</code>。' +
-      "草稿会自动存在本机浏览器里，下次打开继续填。已开赛/已结束的场次变灰，提交也不会得分哦。</p></div>";
+      '<select id="pname">' + playerOpts + "</select></div>" +
+      '<p class="hint">可以一场一场提交：填了哪场就交哪场，没填的以后再来填。' +
+      '点底部「生成 predictions.js」复制内容发给管理员替换 <code>data/predictions.js</code>。' +
+      "🔒 已提交的场次锁定不能再改；⛔ 已出赛果的场次不能再提交。草稿自动存在本机浏览器。</p></div>";
 
     STAGE_ORDER.forEach(function (st) {
       var ms = MATCHES.filter(function (m) { return m.stage === st; });
@@ -209,15 +197,19 @@
       html += '<div class="card"><h2>' + STAGE_NAMES[st] + "</h2>";
       ms.forEach(function (m) {
         var t = teamsOf(m);
-        var played = !!resultOf(m);
-        var v = (draft.scores && draft.scores[m.id]) || predOf(name, m) || ["", ""];
-        html += '<div class="match-form-row' + (played ? " played" : "") + '">' +
-          '<span class="mid">#' + m.id + " " + esc(m.date) + "</span>" +
+        var sub = predOf(name, m);   // 已提交 → 锁定
+        var played = !!resultOf(m);  // 已出赛果 → 不能再提交
+        var locked = !!sub || played;
+        var v = sub || (!played && draft.scores && draft.scores[m.id]) || ["", ""];
+        var mark = sub ? " · 🔒已提交" : (played ? " · ⛔已结束" : "");
+        var dis = locked ? " disabled" : "";
+        html += '<div class="match-form-row' + (locked ? " played" : "") + '">' +
+          '<span class="mid">#' + m.id + " " + esc(m.date) + mark + "</span>" +
           '<span class="teams">' + (t.known ? esc(t.home) + ' <span class="vs">vs</span> ' + esc(t.away)
             : '<span class="tbd">' + esc(m.label || "待定") + "</span>") + "</span>" +
-          '<span class="inputs"><input class="score" type="number" min="0" max="20" data-mid="' + m.id + '" data-side="0" value="' + v[0] + '">' +
+          '<span class="inputs"><input class="score" type="number" min="0" max="20" data-mid="' + m.id + '" data-side="0" value="' + v[0] + '"' + dis + '>' +
           '<span class="vs">:</span>' +
-          '<input class="score" type="number" min="0" max="20" data-mid="' + m.id + '" data-side="1" value="' + v[1] + '"></span></div>';
+          '<input class="score" type="number" min="0" max="20" data-mid="' + m.id + '" data-side="1" value="' + v[1] + '"' + dis + '></span></div>';
       });
       html += "</div>";
     });
@@ -233,16 +225,22 @@
     // 事件
     el.addEventListener("input", function (e) {
       var d = loadDraft();
-      if (e.target.id === "pname") { d.name = e.target.value.trim(); }
-      else if (e.target.id === "pchampion") { d.champion = e.target.value; }
-      else if (e.target.classList.contains("score")) {
+      if (e.target.classList.contains("score")) {
         d.scores = d.scores || {};
         var mid = e.target.dataset.mid;
         var cur = d.scores[mid] || ["", ""];
         cur[+e.target.dataset.side] = e.target.value;
         d.scores[mid] = cur;
-      } else return;
+        saveDraft(d);
+      }
+    });
+
+    // 切换玩家后重新渲染，套用对应的锁定状态
+    $("#pname").addEventListener("change", function (e) {
+      var d = loadDraft();
+      d.name = e.target.value;
       saveDraft(d);
+      renderPredict();
     });
 
     $("#btn-clear-draft").onclick = function () {
@@ -252,24 +250,27 @@
     };
 
     $("#btn-export-pred").onclick = function () {
-      var pname = $("#pname").value.trim();
-      if (!pname) { toast("请先填名字"); return; }
+      var pname = $("#pname").value;
+      if (!pname) { toast("请先选择你是谁"); return; }
       var scores = {};
-      el.querySelectorAll("input.score").forEach(function (inp) {
+      el.querySelectorAll("input.score:not(:disabled)").forEach(function (inp) {
         var mid = inp.dataset.mid, side = +inp.dataset.side;
         if (inp.value === "") return;
         scores[mid] = scores[mid] || [null, null];
         scores[mid][side] = Math.max(0, parseInt(inp.value, 10) || 0);
       });
-      // 只保留两边都填了的场次
-      var clean = {};
+      // 只保留两边都填了、且还没出赛果的场次
+      var fresh = {};
       Object.keys(scores).forEach(function (k) {
-        if (scores[k][0] != null && scores[k][1] != null) clean[k] = scores[k];
+        if (scores[k][0] != null && scores[k][1] != null && !(RESULTS.scores || {})[k]) fresh[k] = scores[k];
       });
-      if (!Object.keys(clean).length) { toast("一场比分都还没填呢"); return; }
+      if (!Object.keys(fresh).length) { toast("没有新的预测可提交"); return; }
 
+      // 已提交过的场次保持原样，只追加新场次
       var merged = JSON.parse(JSON.stringify(PREDICTIONS));
-      merged[pname] = { champion: $("#pchampion").value || "", scores: clean };
+      var mine = (merged[pname] && merged[pname].scores) || {};
+      Object.keys(fresh).forEach(function (k) { if (!mine[k]) mine[k] = fresh[k]; });
+      merged[pname] = { scores: mine };
       copyOut("#pred-export", buildPredictionsFile(merged),
         "已复制！发给管理员替换 data/predictions.js");
     };
@@ -281,7 +282,6 @@
     names.forEach(function (n, i) {
       var p = obj[n];
       lines.push('  "' + n.replace(/"/g, '\\"') + '": {');
-      lines.push('    champion: "' + String(p.champion || "").replace(/"/g, '\\"') + '",');
       lines.push("    scores: {");
       var ids = Object.keys(p.scores || {}).sort(function (a, b) { return a - b; });
       ids.forEach(function (id, j) {
@@ -298,10 +298,11 @@
   // ===== 录入赛果（管理员） =====
   function renderAdmin() {
     var html = '<div class="card"><h2>🛠️ 录入赛果（管理员用）</h2>' +
-      '<p class="hint">填真实比分；淘汰赛对阵确定后在左边两个框里填球队名（要和 48 队名单写法一致，如「阿根廷」）。' +
-      '世界杯结束后选好冠军，点底部按钮生成 <code>data/results.js</code> 整体替换提交即可。</p>' +
-      '<div class="form-row"><label>🏆 最终冠军</label><select id="rchampion">' +
-      teamOptions(RESULTS.champion || "") + "</select></div></div>";
+      '<p class="hint">填真实比分；淘汰赛对阵确定后在左边两个框里填球队名（输入时有 48 队自动补全，写法要和小组赛一致）。' +
+      '填完点底部按钮生成 <code>data/results.js</code> 整体替换提交即可。</p></div>' +
+      '<datalist id="team-list">' + TEAMS.map(function (t) {
+        return '<option value="' + esc(t) + '">';
+      }).join("") + "</datalist>";
 
     STAGE_ORDER.forEach(function (st) {
       var ms = MATCHES.filter(function (m) { return m.stage === st; });
@@ -315,8 +316,8 @@
           teamsHtml = '<span class="teams">' + esc(m.home) + ' <span class="vs">vs</span> ' + esc(m.away) + "</span>";
         } else {
           var tv = (RESULTS.teams || {})[m.id] || ["", ""];
-          teamsHtml = '<span class="teams"><input class="team-in" data-mid="' + m.id + '" data-side="0" placeholder="主队" value="' + esc(tv[0] || "") + '">' +
-            ' <span class="vs">vs</span> <input class="team-in" data-mid="' + m.id + '" data-side="1" placeholder="客队" value="' + esc(tv[1] || "") + '">' +
+          teamsHtml = '<span class="teams"><input class="team-in" list="team-list" data-mid="' + m.id + '" data-side="0" placeholder="主队" value="' + esc(tv[0] || "") + '">' +
+            ' <span class="vs">vs</span> <input class="team-in" list="team-list" data-mid="' + m.id + '" data-side="1" placeholder="客队" value="' + esc(tv[1] || "") + '">' +
             ' <span class="tbd" style="font-size:.78rem">' + esc(m.label || "") + "</span></span>";
         }
         html += '<div class="match-form-row">' +
@@ -353,8 +354,7 @@
         teams[mid][+inp.dataset.side] = v;
       });
 
-      var lines = ["// 真实赛果（由页面自动生成）", "window.WC_RESULTS = {",
-        '  champion: "' + ($("#rchampion").value || "") + '",', "  scores: {"];
+      var lines = ["// 真实赛果（由页面自动生成）", "window.WC_RESULTS = {", "  scores: {"];
       var ids = Object.keys(scores).sort(function (a, b) { return a - b; });
       ids.forEach(function (id, i) {
         lines.push('    "' + id + '": [' + scores[id][0] + ", " + scores[id][1] + "]" + (i < ids.length - 1 ? "," : ""));
