@@ -1,8 +1,15 @@
-/* 2026 World Cup Prediction League — core logic */
+/* 2026 World Cup Prediction League — core logic
+ * Data lives in Supabase: friends submit predictions straight from the page
+ * (no account needed); the database enforces locking (insert-only, no edits).
+ * The admin signs in on the "Enter Results" tab to record real scores. */
 (function () {
   "use strict";
 
-  // ===== Scoring (edit here; unit = RMB) =====
+  // ===== Supabase config =====
+  var SB_URL = "https://bhovsbvijzlqfdwgulcc.supabase.co";
+  var SB_KEY = "sb_publishable_D1HzrfwZDBKJi_j-FZW_YA_uO8qG1tU";
+
+  // ===== Scoring (unit = RMB) =====
   // Exact score → every OTHER player pays the hitter this amount.
   // Leaderboard shows each player's net balance (can go negative).
   var PT_EXACT = 1;
@@ -11,10 +18,12 @@
   var PLAYERS = ["RiT", "ST", "RT", "ArP", "AP", "SP", "NP"];
 
   var MATCHES = window.WC_MATCHES || [];
-  var PREDICTIONS = window.WC_PREDICTIONS || {};
-  var RESULTS = window.WC_RESULTS || { scores: {}, teams: {} };
   var TEAMS = window.WC_TEAMS || [];
   var STAGE_ORDER = ["group", "r32", "r16", "qf", "sf", "third", "final"];
+
+  // filled from Supabase
+  var PREDICTIONS = {};
+  var RESULTS = { scores: {}, teams: {} };
 
   // ===== i18n =====
   var LANG_KEY = "wc2026_lang";
@@ -42,10 +51,12 @@
       subtitle: "USA · Canada · Mexico · Jun 11 – Jul 19 · 48 teams · 104 matches",
       tab_board: "🏆 Leaderboard", tab_matches: "📅 Fixtures", tab_predict: "✍️ My Predictions",
       tab_admin: "🛠️ Enter Results", tab_rules: "📖 Rules",
-      footer: "Static site · all data lives in <code>data/</code> · hosted on GitHub Pages",
+      footer: "Static site + Supabase · hosted on GitHub Pages",
       stage_group: "Group Stage", stage_r32: "Round of 32", stage_r16: "Round of 16",
       stage_qf: "Quarter-finals", stage_sf: "Semi-finals", stage_third: "Third-place Match", stage_final: "Final",
       unit: "RMB",
+      loading: "Loading…",
+      toast_load_failed: "Couldn't load data — check your network and refresh",
       board_empty: "No predictions yet — head to “My Predictions” and submit the first one!",
       bars_title: "Net balance (RMB)",
       detail_title: "Details ({a} / {b} played)",
@@ -56,22 +67,31 @@
       group_title: "Group {g}",
       predict_title: "✍️ My Predictions",
       who_label: "I am", who_placeholder: "— select your name —",
-      predict_hint: "Submit one match at a time if you like — whatever you fill in is what you submit, the rest can wait. " +
-        "Click “Generate predictions.js” below, copy the content and send it to the admin to replace <code>data/predictions.js</code>. " +
-        "🔒 Submitted matches are locked and can't be changed; ⛔ matches with a recorded result can no longer be submitted. " +
-        "Drafts auto-save in this browser.",
+      predict_hint: "Pick your name, fill in any matches you like and hit <b>🚀 Submit</b> — done, no account needed. " +
+        "Whatever you fill in is what you submit; the rest can wait for another day. " +
+        "🔒 Submitted matches are locked for good — the database refuses any change; " +
+        "⛔ matches with a recorded result can no longer be submitted. Drafts auto-save in this browser.",
       mark_submitted: " · 🔒Submitted", mark_finished: " · ⛔Finished",
-      btn_export_pred: "📋 Generate predictions.js & copy", btn_clear_draft: "Clear draft",
+      btn_submit: "🚀 Submit", btn_clear_draft: "Clear draft",
       toast_pick_name: "Pick your name first", toast_nothing: "Nothing new to submit",
-      toast_pred_copied: "Copied! Send it to the admin to replace data/predictions.js",
+      toast_submitting: "Submitting…",
+      toast_submit_ok: "{n} prediction(s) submitted ✔",
+      toast_submit_locked: "{n} match(es) already locked — not changed",
+      toast_submit_failed: "{n} failed (network) — try again",
       toast_draft_cleared: "Draft cleared",
       admin_title: "🛠️ Enter Results (admin)",
-      admin_hint: "Enter real scores. Once a knockout pairing is known, type the two team names on the left " +
-        "(autocomplete from the 48 teams — use the exact English names). Then click the button at the bottom to " +
-        "generate <code>data/results.js</code>, replace the file and push.",
+      admin_hint: "Enter real scores; for knockout matches type the two team names once the pairing is known " +
+        "(English names, autocomplete from the 48 teams). Click 💾 Save — changes go live for everyone right away.",
+      admin_login_hint: "Admin sign-in (Supabase user)",
+      ph_email: "Email", ph_password: "Password",
+      btn_login: "Sign in", btn_logout: "Sign out",
+      toast_login_failed: "Sign-in failed — check email / password",
+      toast_logged_in: "Signed in ✔",
       ph_home: "Home", ph_away: "Away",
-      btn_export_res: "📋 Generate results.js & copy",
-      toast_res_copied: "Copied! Replace data/results.js and push",
+      btn_save_res: "💾 Save results",
+      toast_res_saved: "Results saved ✔",
+      toast_res_failed: "Save failed — try signing in again",
+      toast_nothing_save: "Nothing to save",
       rules_html:
         '<div class="card"><h2>📖 Rules</h2>' +
         '<ul class="rules-list">' +
@@ -87,11 +107,11 @@
         "</ul>" +
         "<h3>How to play</h3>" +
         '<ol class="rules-list plain">' +
-        "<li>On “My Predictions”, pick your name (only RiT / ST / RT / ArP / AP / SP / NP), fill in scores, click “Generate predictions.js” and copy.</li>" +
-        "<li>Send it to the admin (or commit it yourself) to replace <code>data/predictions.js</code> — the page updates automatically.</li>" +
-        "<li>Submit as few or as many matches as you like, whenever you like. <b>Submitted matches are locked; matches with a recorded result can no longer be submitted.</b></li>" +
+        "<li>On “My Predictions”, pick your name (only RiT / ST / RT / ArP / AP / SP / NP), fill in scores and hit Submit — no account needed.</li>" +
+        "<li>Submit as few or as many matches as you like, whenever you like. <b>Once submitted, a match is locked — the database refuses edits. Matches with a recorded result can't be submitted.</b></li>" +
         "<li>Between kickoff and the result being entered, please behave 😄 — honour system.</li>" +
-        "</ol></div>"
+        "</ol></div>",
+      cfg_missing: "⚠️ Supabase key not configured yet — submissions are disabled."
     },
     zh: {
       doc_title: "2026 世界杯预测大赛",
@@ -99,10 +119,12 @@
       subtitle: "美加墨 · 6月11日 — 7月19日 · 48 队 104 场",
       tab_board: "🏆 排行榜", tab_matches: "📅 赛程 & 预测", tab_predict: "✍️ 填写预测",
       tab_admin: "🛠️ 录入赛果", tab_rules: "📖 规则",
-      footer: "纯静态页面 · 数据存在 <code>data/</code> 目录 · 部署在 GitHub Pages",
+      footer: "静态页面 + Supabase · 部署在 GitHub Pages",
       stage_group: "小组赛", stage_r32: "32强 · 1/16决赛", stage_r16: "16强 · 1/8决赛",
       stage_qf: "1/4决赛", stage_sf: "半决赛", stage_third: "季军赛", stage_final: "决赛",
       unit: "元",
+      loading: "加载中…",
+      toast_load_failed: "数据加载失败，请检查网络后刷新",
       board_empty: "还没有任何预测数据，去「填写预测」页提交第一份吧！",
       bars_title: "净收支（元）",
       detail_title: "明细（已完赛 {a} / {b} 场）",
@@ -113,20 +135,30 @@
       group_title: "{g} 组",
       predict_title: "✍️ 填写我的预测",
       who_label: "我的名字", who_placeholder: "— 我是谁 —",
-      predict_hint: "可以一场一场提交：填了哪场就交哪场，没填的以后再来填。" +
-        "点底部「生成 predictions.js」复制内容发给管理员替换 <code>data/predictions.js</code>。" +
-        "🔒 已提交的场次锁定不能再改；⛔ 已出赛果的场次不能再提交。草稿自动存在本机浏览器。",
+      predict_hint: "选自己的名字，想填哪场填哪场，点 <b>🚀 提交</b> 即可——不需要注册任何账号。" +
+        "填了就能交，没填的以后再来。🔒 已提交的场次永久锁定，数据库直接拒绝修改；" +
+        "⛔ 已出赛果的场次不能再提交。草稿自动存在本机浏览器。",
       mark_submitted: " · 🔒已提交", mark_finished: " · ⛔已结束",
-      btn_export_pred: "📋 生成 predictions.js 并复制", btn_clear_draft: "清空草稿",
+      btn_submit: "🚀 提交", btn_clear_draft: "清空草稿",
       toast_pick_name: "请先选择你是谁", toast_nothing: "没有新的预测可提交",
-      toast_pred_copied: "已复制！发给管理员替换 data/predictions.js",
+      toast_submitting: "提交中…",
+      toast_submit_ok: "成功提交 {n} 场 ✔",
+      toast_submit_locked: "{n} 场已锁定，未改动",
+      toast_submit_failed: "{n} 场提交失败（网络问题），请重试",
       toast_draft_cleared: "草稿已清空",
       admin_title: "🛠️ 录入赛果（管理员用）",
-      admin_hint: "填真实比分；淘汰赛对阵确定后在左边两个框里填球队英文名（48 队自动补全，需与小组赛写法一致）。" +
-        "填完点底部按钮生成 <code>data/results.js</code> 整体替换提交即可。",
+      admin_hint: "填真实比分；淘汰赛对阵确定后在左边填两队英文名（48 队自动补全）。" +
+        "点 💾 保存后立即对所有人生效。",
+      admin_login_hint: "管理员登录（Supabase 账号）",
+      ph_email: "邮箱", ph_password: "密码",
+      btn_login: "登录", btn_logout: "退出登录",
+      toast_login_failed: "登录失败，请检查邮箱/密码",
+      toast_logged_in: "已登录 ✔",
       ph_home: "主队", ph_away: "客队",
-      btn_export_res: "📋 生成 results.js 并复制",
-      toast_res_copied: "已复制！替换 data/results.js 后提交",
+      btn_save_res: "💾 保存赛果",
+      toast_res_saved: "赛果已保存 ✔",
+      toast_res_failed: "保存失败，请重新登录后再试",
+      toast_nothing_save: "没有可保存的内容",
       rules_html:
         '<div class="card"><h2>📖 奖金规则</h2>' +
         '<ul class="rules-list">' +
@@ -137,16 +169,16 @@
         "<h3>淘汰赛说明</h3>" +
         '<ul class="rules-list plain">' +
         "<li>淘汰赛按「90 分钟 + 加时」结束时的比分计算，点球大战不计入比分。</li>" +
-        "<li>例如预测 1-1（即认为会拖入点球），实际加时后 1-1，则比分全对 +1 元。</li>" +
+        "<li>例如预测 1-1（即认为会拖入点球），实际加时后 1-1，则比分全对。</li>" +
         "<li>淘汰赛对阵确定后才开放预测，请及时来填。</li>" +
         "</ul>" +
         "<h3>怎么玩</h3>" +
         '<ol class="rules-list plain">' +
-        "<li>在「填写预测」页下拉框选自己（仅限 RiT / ST / RT / ArP / AP / SP / NP 七人），填比分，点「生成 predictions.js」复制内容。</li>" +
-        "<li>把内容发给管理员（或自己提交到仓库），替换 <code>data/predictions.js</code> 后页面自动更新。</li>" +
-        "<li>可以一场一场提交：填几场交几场，没填的以后再来。<b>已提交的场次锁定不能改，已出赛果的场次不能再提交。</b></li>" +
+        "<li>在「填写预测」页下拉框选自己（仅限 RiT / ST / RT / ArP / AP / SP / NP 七人），填比分点提交——不需要注册账号。</li>" +
+        "<li>可以一场一场提交：填几场交几场。<b>提交即永久锁定，数据库拒绝任何修改；已出赛果的场次不能再提交。</b></li>" +
         "<li>开赛后、管理员还没录比分前的空档请自觉别钻 😄，朋友间诚信第一。</li>" +
-        "</ol></div>"
+        "</ol></div>",
+      cfg_missing: "⚠️ Supabase key 还没配置，暂时无法提交。"
     }
   };
 
@@ -163,7 +195,6 @@
     return m ? MONTHS_EN[+m[1] - 1] + " " + m[2] : d;
   }
 
-  // knockout slot codes → readable text
   function slotText(code) {
     var m;
     if ((m = /^1([A-L])$/.exec(code))) return LANG === "zh" ? m[1] + "组第一" : "Group " + m[1] + " winner";
@@ -190,10 +221,47 @@
     el.textContent = msg;
     el.classList.add("show");
     clearTimeout(toast._tm);
-    toast._tm = setTimeout(function () { el.classList.remove("show"); }, 2200);
+    toast._tm = setTimeout(function () { el.classList.remove("show"); }, 2600);
+  }
+  function fmt(key, n) { return t(key).replace("{n}", n); }
+
+  // ===== Supabase REST =====
+  var TOKEN_KEY = "wc2026_admin_token";
+  function cfgOk() { return SB_KEY.indexOf("PASTE") === -1; }
+  function sbFetch(path, opts) {
+    opts = opts || {};
+    opts.headers = opts.headers || {};
+    opts.headers.apikey = SB_KEY;
+    if (!opts.headers.Authorization) opts.headers.Authorization = "Bearer " + SB_KEY;
+    if (opts.body) opts.headers["Content-Type"] = "application/json";
+    return fetch(SB_URL + path, opts);
   }
 
-  // Knockout teams can be supplied later via results.js
+  function fetchData() {
+    return Promise.all([
+      sbFetch("/rest/v1/predictions?select=player,match_id,home,away").then(function (r) {
+        if (!r.ok) throw new Error("predictions " + r.status);
+        return r.json();
+      }),
+      sbFetch("/rest/v1/results?select=match_id,home,away,team_home,team_away").then(function (r) {
+        if (!r.ok) throw new Error("results " + r.status);
+        return r.json();
+      })
+    ]).then(function (data) {
+      PREDICTIONS = {};
+      PLAYERS.forEach(function (n) { PREDICTIONS[n] = { scores: {} }; });
+      data[0].forEach(function (row) {
+        if (PREDICTIONS[row.player]) PREDICTIONS[row.player].scores[row.match_id] = [row.home, row.away];
+      });
+      RESULTS = { scores: {}, teams: {} };
+      data[1].forEach(function (row) {
+        if (row.home != null && row.away != null) RESULTS.scores[row.match_id] = [row.home, row.away];
+        if (row.team_home && row.team_away) RESULTS.teams[row.match_id] = [row.team_home, row.team_away];
+      });
+    });
+  }
+
+  // ===== Data accessors =====
   function teamsOf(m) {
     var tt = (RESULTS.teams || {})[m.id];
     if (tt && tt[0] && tt[1]) return { home: tt[0], away: tt[1], known: true };
@@ -210,7 +278,6 @@
     var v = p.scores[m.id] != null ? p.scores[m.id] : p.scores[String(m.id)];
     return (v && v.length === 2 && v[0] != null && v[1] != null) ? v : null;
   }
-  // exact score or nothing — that's the whole game
   function isExact(pred, res) {
     if (!pred || !res) return null;
     return pred[0] === res[0] && pred[1] === res[1];
@@ -224,7 +291,6 @@
       var res = resultOf(m);
       PLAYERS.forEach(function (n) { if (predOf(n, m)) predicted[n]++; });
       if (!res) return;
-      // every other player pays each hitter
       var hitters = PLAYERS.filter(function (n) { return isExact(predOf(n, m), res); });
       hitters.forEach(function (h) {
         exact[h]++;
@@ -245,10 +311,6 @@
   function renderBoard() {
     var board = computeBoard();
     var el = $("#tab-board");
-    if (!board.length) {
-      el.innerHTML = '<div class="card"><h2>' + t("tab_board") + '</h2><p class="hint">' + t("board_empty") + "</p></div>";
-      return;
-    }
     var medals = ["🥇", "🥈", "🥉"];
     var podium = '<div class="podium">' + board.slice(0, 3).map(function (p, i) {
       return '<div class="spot' + (i === 0 ? " first" : "") + '">' +
@@ -341,7 +403,8 @@
     var html = '<div class="card"><h2>' + t("predict_title") + "</h2>" +
       '<div class="form-row"><label>' + t("who_label") + "</label>" +
       '<select id="pname">' + playerOpts + "</select></div>" +
-      '<p class="hint">' + t("predict_hint") + "</p></div>";
+      '<p class="hint">' + t("predict_hint") + "</p>" +
+      (cfgOk() ? "" : '<p class="hint" style="color:var(--red)">' + t("cfg_missing") + "</p>") + "</div>";
 
     STAGE_ORDER.forEach(function (st) {
       var ms = MATCHES.filter(function (m) { return m.stage === st; });
@@ -367,9 +430,8 @@
     });
 
     html += '<div class="sticky-actions">' +
-      '<button class="btn" id="btn-export-pred">' + t("btn_export_pred") + "</button>" +
-      '<button class="btn ghost" id="btn-clear-draft">' + t("btn_clear_draft") + "</button></div>" +
-      '<textarea class="export" id="pred-export" readonly></textarea>';
+      '<button class="btn" id="btn-submit"' + (cfgOk() ? "" : " disabled") + ">" + t("btn_submit") + "</button>" +
+      '<button class="btn ghost" id="btn-clear-draft">' + t("btn_clear_draft") + "</button></div>";
 
     var el = $("#tab-predict");
     el.innerHTML = html;
@@ -386,7 +448,6 @@
       }
     });
 
-    // re-render on player switch to apply that player's locks
     $("#pname").addEventListener("change", function (e) {
       var d = loadDraft();
       d.name = e.target.value;
@@ -395,12 +456,14 @@
     });
 
     $("#btn-clear-draft").onclick = function () {
+      var d = loadDraft();
       localStorage.removeItem(DRAFT_KEY);
+      if (d.name) saveDraft({ name: d.name });
       renderPredict();
       toast(t("toast_draft_cleared"));
     };
 
-    $("#btn-export-pred").onclick = function () {
+    $("#btn-submit").onclick = function () {
       var pname = $("#pname").value;
       if (!pname) { toast(t("toast_pick_name")); return; }
       var scores = {};
@@ -410,45 +473,78 @@
         scores[mid] = scores[mid] || [null, null];
         scores[mid][side] = Math.max(0, parseInt(inp.value, 10) || 0);
       });
-      // keep only fully-filled matches that have no recorded result
-      var fresh = {};
+      var rows = [];
       Object.keys(scores).forEach(function (k) {
-        if (scores[k][0] != null && scores[k][1] != null && !(RESULTS.scores || {})[k]) fresh[k] = scores[k];
+        if (scores[k][0] != null && scores[k][1] != null && !(RESULTS.scores || {})[k]) {
+          rows.push({ player: pname, match_id: +k, home: scores[k][0], away: scores[k][1] });
+        }
       });
-      if (!Object.keys(fresh).length) { toast(t("toast_nothing")); return; }
+      if (!rows.length) { toast(t("toast_nothing")); return; }
 
-      // submitted matches stay untouched; only new ones are appended
-      var merged = JSON.parse(JSON.stringify(PREDICTIONS));
-      var mine = (merged[pname] && merged[pname].scores) || {};
-      Object.keys(fresh).forEach(function (k) { if (!mine[k]) mine[k] = fresh[k]; });
-      merged[pname] = { scores: mine };
-      copyOut("#pred-export", buildPredictionsFile(merged), t("toast_pred_copied"));
+      var btn = this;
+      btn.disabled = true;
+      toast(t("toast_submitting"));
+      Promise.all(rows.map(function (row) {
+        return sbFetch("/rest/v1/predictions", {
+          method: "POST",
+          headers: { Prefer: "return=minimal" },
+          body: JSON.stringify(row)
+        }).then(function (r) { return { id: row.match_id, ok: r.ok, status: r.status }; },
+          function () { return { id: row.match_id, ok: false, status: 0 }; });
+      })).then(function (outs) {
+        btn.disabled = false;
+        var ok = outs.filter(function (o) { return o.ok; }).length;
+        // 409 = duplicate (already submitted), 401/403 = RLS reject (match finished)
+        var locked = outs.filter(function (o) { return !o.ok && (o.status === 409 || o.status === 403 || o.status === 401); }).length;
+        var failed = outs.length - ok - locked;
+        // drop successfully submitted matches from the draft
+        var d = loadDraft();
+        if (d.scores) outs.forEach(function (o) { if (o.ok) delete d.scores[o.id]; });
+        saveDraft(d);
+        var msg = [];
+        if (ok) msg.push(fmt("toast_submit_ok", ok));
+        if (locked) msg.push(fmt("toast_submit_locked", locked));
+        if (failed) msg.push(fmt("toast_submit_failed", failed));
+        toast(msg.join(" · "));
+        fetchData().then(renderAll, function () {});
+      });
     };
   }
 
-  function buildPredictionsFile(obj) {
-    var lines = ["// Player predictions (auto-generated by the site)", "window.WC_PREDICTIONS = {"];
-    var names = Object.keys(obj);
-    names.forEach(function (n, i) {
-      var p = obj[n];
-      lines.push('  "' + n.replace(/"/g, '\\"') + '": {');
-      lines.push("    scores: {");
-      var ids = Object.keys(p.scores || {}).sort(function (a, b) { return a - b; });
-      ids.forEach(function (id, j) {
-        var s = p.scores[id];
-        lines.push('      "' + id + '": [' + s[0] + ", " + s[1] + "]" + (j < ids.length - 1 ? "," : ""));
-      });
-      lines.push("    }");
-      lines.push("  }" + (i < names.length - 1 ? "," : ""));
-    });
-    lines.push("};");
-    return lines.join("\n");
-  }
-
   // ===== Enter results (admin) =====
+  function getToken() { return sessionStorage.getItem(TOKEN_KEY) || ""; }
+
   function renderAdmin() {
+    var el = $("#tab-admin");
+    var token = getToken();
+
+    if (!token) {
+      el.innerHTML = '<div class="card"><h2>' + t("admin_title") + "</h2>" +
+        '<p class="hint">' + t("admin_login_hint") + "</p>" +
+        '<div class="form-row">' +
+        '<input type="text" id="adm-email" placeholder="' + t("ph_email") + '" autocomplete="username">' +
+        '<input type="password" id="adm-pass" placeholder="' + t("ph_password") + '" autocomplete="current-password">' +
+        '<button class="btn" id="btn-login">' + t("btn_login") + "</button></div></div>";
+      $("#btn-login").onclick = function () {
+        var btn = this;
+        btn.disabled = true;
+        sbFetch("/auth/v1/token?grant_type=password", {
+          method: "POST",
+          body: JSON.stringify({ email: $("#adm-email").value.trim(), password: $("#adm-pass").value })
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+          .then(function (j) {
+            sessionStorage.setItem(TOKEN_KEY, j.access_token);
+            toast(t("toast_logged_in"));
+            renderAdmin();
+          })
+          .catch(function () { btn.disabled = false; toast(t("toast_login_failed")); });
+      };
+      return;
+    }
+
     var html = '<div class="card"><h2>' + t("admin_title") + "</h2>" +
-      '<p class="hint">' + t("admin_hint") + "</p></div>" +
+      '<p class="hint">' + t("admin_hint") + "</p>" +
+      '<button class="btn ghost" id="btn-logout">' + t("btn_logout") + "</button></div>" +
       '<datalist id="team-list">' + TEAMS.map(function (tm) {
         return '<option value="' + esc(tm) + '">';
       }).join("") + "</datalist>";
@@ -477,43 +573,68 @@
       html += "</div>";
     });
 
-    html += '<div class="sticky-actions"><button class="btn gold" id="btn-export-res">' + t("btn_export_res") + "</button></div>" +
-      '<textarea class="export" id="res-export" readonly></textarea>';
-
-    var el = $("#tab-admin");
+    html += '<div class="sticky-actions"><button class="btn gold" id="btn-save-res">' + t("btn_save_res") + "</button></div>";
     el.innerHTML = html;
 
-    $("#btn-export-res").onclick = function () {
-      var scores = {}, teams = {};
+    $("#btn-logout").onclick = function () {
+      sessionStorage.removeItem(TOKEN_KEY);
+      renderAdmin();
+    };
+
+    $("#btn-save-res").onclick = function () {
+      var byId = {};
       el.querySelectorAll("input.rscore").forEach(function (inp) {
         if (inp.value === "") return;
         var mid = inp.dataset.mid;
-        scores[mid] = scores[mid] || [null, null];
-        scores[mid][+inp.dataset.side] = Math.max(0, parseInt(inp.value, 10) || 0);
+        byId[mid] = byId[mid] || {};
+        byId[mid][+inp.dataset.side === 0 ? "home" : "away"] = Math.max(0, parseInt(inp.value, 10) || 0);
       });
-      Object.keys(scores).forEach(function (k) {
-        if (scores[k][0] == null || scores[k][1] == null) delete scores[k];
-      });
+      var teamsById = {};
       el.querySelectorAll("input.team-in").forEach(function (inp) {
         var v = inp.value.trim();
         if (!v) return;
         var mid = inp.dataset.mid;
-        teams[mid] = teams[mid] || ["", ""];
-        teams[mid][+inp.dataset.side] = v;
+        teamsById[mid] = teamsById[mid] || {};
+        teamsById[mid][+inp.dataset.side === 0 ? "team_home" : "team_away"] = v;
       });
 
-      var lines = ["// Match results (auto-generated by the site)", "window.WC_RESULTS = {", "  scores: {"];
-      var ids = Object.keys(scores).sort(function (a, b) { return a - b; });
-      ids.forEach(function (id, i) {
-        lines.push('    "' + id + '": [' + scores[id][0] + ", " + scores[id][1] + "]" + (i < ids.length - 1 ? "," : ""));
+      var rows = [];
+      var ids = {};
+      Object.keys(byId).forEach(function (k) { ids[k] = true; });
+      Object.keys(teamsById).forEach(function (k) { ids[k] = true; });
+      Object.keys(ids).forEach(function (k) {
+        var row = { match_id: +k };
+        var sc = byId[k];
+        if (sc && sc.home != null && sc.away != null) { row.home = sc.home; row.away = sc.away; }
+        var tm = teamsById[k];
+        if (tm && tm.team_home && tm.team_away) { row.team_home = tm.team_home; row.team_away = tm.team_away; }
+        if (row.home != null || row.team_home) rows.push(row);
       });
-      lines.push("  },", "  teams: {");
-      var tids = Object.keys(teams).sort(function (a, b) { return a - b; });
-      tids.forEach(function (id, i) {
-        lines.push('    "' + id + '": ["' + teams[id][0].replace(/"/g, '\\"') + '", "' + teams[id][1].replace(/"/g, '\\"') + '"]' + (i < tids.length - 1 ? "," : ""));
+      if (!rows.length) { toast(t("toast_nothing_save")); return; }
+
+      var btn = this;
+      btn.disabled = true;
+      sbFetch("/rest/v1/results?on_conflict=match_id", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + getToken(),
+          Prefer: "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify(rows)
+      }).then(function (r) {
+        btn.disabled = false;
+        if (!r.ok) {
+          if (r.status === 401) sessionStorage.removeItem(TOKEN_KEY);
+          toast(t("toast_res_failed"));
+          if (r.status === 401) renderAdmin();
+          return;
+        }
+        toast(t("toast_res_saved"));
+        fetchData().then(renderAll, function () {});
+      }, function () {
+        btn.disabled = false;
+        toast(t("toast_res_failed"));
       });
-      lines.push("  }", "};");
-      copyOut("#res-export", lines.join("\n"), t("toast_res_copied"));
     };
   }
 
@@ -522,23 +643,7 @@
     $("#tab-rules").innerHTML = t("rules_html");
   }
 
-  // ===== Copy helper =====
-  function copyOut(sel, text, okMsg) {
-    var ta = $(sel);
-    ta.value = text;
-    ta.style.display = "block";
-    ta.select();
-    var done = function () { toast(okMsg); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () {
-        document.execCommand("copy"); done();
-      });
-    } else {
-      document.execCommand("copy"); done();
-    }
-  }
-
-  // ===== Static chrome (header, tabs, footer) =====
+  // ===== Static chrome =====
   function applyStatic() {
     document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
     document.title = t("doc_title");
@@ -577,5 +682,7 @@
   });
 
   // ===== Boot =====
+  $("#tab-board").innerHTML = '<div class="card"><p class="hint">' + t("loading") + "</p></div>";
   renderAll();
+  fetchData().then(renderAll, function () { toast(t("toast_load_failed")); });
 })();
