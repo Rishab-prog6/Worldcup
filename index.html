@@ -27,17 +27,16 @@
     <section id="tab-admin" class="tab-panel"></section>
     <section id="tab-rules" class="tab-panel">
       <div class="card">
-        <h2>📖 计分规则</h2>
+        <h2>📖 奖金规则</h2>
         <ul class="rules-list">
-          <li><span class="pt pt-3">3分</span> 比分完全猜对（如预测 2-1，实际 2-1）</li>
-          <li><span class="pt pt-1">1分</span> 比分没对，但胜平负关系猜对（如预测 2-0，实际 1-0）</li>
-          <li><span class="pt pt-0">0分</span> 胜平负也没猜对</li>
-          <li><span class="pt pt-c">+8分</span> 冠军预测正确（开赛前提交，整届只能选一次）</li>
+          <li><span class="pt pt-3">+1元</span> 比分完全猜对（如预测 2-1，实际 2-1），奖金 +1 元</li>
+          <li><span class="pt pt-0">0元</span> 比分没对就没钱，猜对胜负也不算</li>
+          <li><span class="pt pt-c">荣誉</span> 冠军预测仅供吹牛，不计钱（想计钱可改 <code>js/app.js</code> 里的 <code>PT_CHAMPION</code>）</li>
         </ul>
         <h3>淘汰赛说明</h3>
         <ul class="rules-list plain">
           <li>淘汰赛按「90 分钟 + 加时」结束时的比分计算，点球大战不计入比分。</li>
-          <li>例如预测 1-1（即认为会拖入点球），实际加时后 1-1，则比分全对得 3 分。</li>
+          <li>例如预测 1-1（即认为会拖入点球），实际加时后 1-1，则比分全对 +1 元。</li>
           <li>淘汰赛对阵确定后才开放预测，请及时来填。</li>
         </ul>
         <h3>怎么玩</h3>

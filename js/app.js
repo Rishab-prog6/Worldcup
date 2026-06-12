@@ -2,10 +2,11 @@
 (function () {
   "use strict";
 
-  // ===== 计分规则（想改规则只改这里） =====
-  var PT_EXACT = 3;     // 比分全对
-  var PT_OUTCOME = 1;   // 仅胜平负对
-  var PT_CHAMPION = 8;  // 冠军预测对
+  // ===== 计分规则（想改规则只改这里，单位：元） =====
+  var PT_EXACT = 1;     // 比分全对 +1 元
+  var PT_OUTCOME = 0;   // 仅胜平负对，不得钱
+  var PT_CHAMPION = 0;  // 冠军预测仅供娱乐，不计钱
+  var UNIT = "元";
 
   var STAGE_NAMES = {
     group: "小组赛", r32: "32强 · 1/16决赛", r16: "16强 · 1/8决赛",
@@ -51,11 +52,17 @@
     var v = p.scores[m.id] != null ? p.scores[m.id] : p.scores[String(m.id)];
     return (v && v.length === 2 && v[0] != null && v[1] != null) ? v : null;
   }
-  function matchPoints(pred, res) {
+  // 命中类型：exact 比分全对 / outcome 仅胜平负对 / miss 没中
+  function hitType(pred, res) {
     if (!pred || !res) return null;
-    if (pred[0] === res[0] && pred[1] === res[1]) return PT_EXACT;
-    if (Math.sign(pred[0] - pred[1]) === Math.sign(res[0] - res[1])) return PT_OUTCOME;
-    return 0;
+    if (pred[0] === res[0] && pred[1] === res[1]) return "exact";
+    if (Math.sign(pred[0] - pred[1]) === Math.sign(res[0] - res[1])) return "outcome";
+    return "miss";
+  }
+  function matchPoints(pred, res) {
+    var t = hitType(pred, res);
+    if (t === null) return null;
+    return t === "exact" ? PT_EXACT : t === "outcome" ? PT_OUTCOME : 0;
   }
 
   // ===== 排行榜 =====
@@ -63,12 +70,13 @@
     return PLAYERS.map(function (name) {
       var total = 0, exact = 0, outcome = 0, predicted = 0;
       MATCHES.forEach(function (m) {
-        var pts = matchPoints(predOf(name, m), resultOf(m));
-        if (predOf(name, m)) predicted++;
-        if (pts === null) return;
-        total += pts;
-        if (pts === PT_EXACT) exact++;
-        else if (pts === PT_OUTCOME) outcome++;
+        var pred = predOf(name, m);
+        if (pred) predicted++;
+        var t = hitType(pred, resultOf(m));
+        if (t === null) return;
+        total += t === "exact" ? PT_EXACT : t === "outcome" ? PT_OUTCOME : 0;
+        if (t === "exact") exact++;
+        else if (t === "outcome") outcome++;
       });
       var champ = (PREDICTIONS[name] || {}).champion || "";
       var champHit = RESULTS.champion && champ === RESULTS.champion;
@@ -91,11 +99,11 @@
       return '<div class="spot' + (i === 0 ? " first" : "") + '">' +
         '<div class="medal">' + medals[i] + '</div>' +
         '<div class="name">' + esc(p.name) + '</div>' +
-        '<div class="pts">' + p.total + ' <small>分</small></div></div>';
+        '<div class="pts">' + p.total + ' <small>' + UNIT + '</small></div></div>';
     }).join("") + "</div>";
 
     var max = Math.max(board[0].total, 1);
-    var bars = '<div class="card"><h2>积分对比</h2>' + board.map(function (p) {
+    var bars = '<div class="card"><h2>奖金对比（' + UNIT + '）</h2>' + board.map(function (p) {
       return '<div class="bar-row"><div class="bname">' + esc(p.name) + '</div>' +
         '<div class="bar-track"><div class="bar-fill" style="width:' + Math.round(p.total / max * 100) + '%"></div></div>' +
         '<div class="bpts">' + p.total + '</div></div>';
@@ -105,10 +113,10 @@
     var rows = board.map(function (p, i) {
       return "<tr><td>" + (i + 1) + "</td><td><b>" + esc(p.name) + "</b></td><td>" + p.total + "</td>" +
         "<td>" + p.exact + "</td><td>" + p.outcome + "</td><td>" + p.predicted + "</td>" +
-        "<td>" + (p.champion ? esc(p.champion) + (p.champHit ? " ✅+ " + PT_CHAMPION : "") : "—") + "</td></tr>";
+        "<td>" + (p.champion ? esc(p.champion) + (p.champHit ? " ✅" : "") : "—") + "</td></tr>";
     }).join("");
     var table = '<div class="card"><h2>明细（已完赛 ' + finished + ' / ' + MATCHES.length + ' 场）</h2>' +
-      '<div class="table-wrap"><table><thead><tr><th>排名</th><th>玩家</th><th>总分</th><th>比分全对</th><th>胜负对</th><th>已预测场次</th><th>冠军预测</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table><thead><tr><th>排名</th><th>玩家</th><th>奖金(' + UNIT + ')</th><th>比分全对</th><th>仅胜负对</th><th>已预测场次</th><th>冠军预测</th></tr></thead><tbody>' +
       rows + "</tbody></table></div></div>";
 
     el.innerHTML = podium + bars + table;
@@ -121,8 +129,8 @@
     var res = resultOf(m);
     var txt = pred[0] + "-" + pred[1];
     if (!res) return '<span class="pred wait">' + txt + "</span>";
-    var pts = matchPoints(pred, res);
-    var cls = pts === PT_EXACT ? "hit3" : pts === PT_OUTCOME ? "hit1" : "hit0";
+    var t = hitType(pred, res);
+    var cls = t === "exact" ? "hit3" : t === "outcome" ? "hit1" : "hit0";
     return '<span class="pred ' + cls + '">' + txt + "</span>";
   }
 
@@ -143,9 +151,9 @@
   }
 
   function renderMatches() {
-    var html = '<div class="legend">图例：<span class="pred hit3">2-1</span> 比分全对 +' + PT_EXACT +
-      ' <span class="pred hit1">1-0</span> 胜负对 +' + PT_OUTCOME +
-      ' <span class="pred hit0">0-2</span> 没猜中 <span class="pred wait">3-1</span> 未开赛</div>';
+    var html = '<div class="legend">图例：<span class="pred hit3">2-1</span> 比分全对 +' + PT_EXACT + UNIT +
+      ' <span class="pred hit1">1-0</span> 仅胜负对（不得钱） ' +
+      '<span class="pred hit0">0-2</span> 没猜中 <span class="pred wait">3-1</span> 未开赛</div>';
     STAGE_ORDER.forEach(function (st) {
       var ms = MATCHES.filter(function (m) { return m.stage === st; });
       if (!ms.length) return;
