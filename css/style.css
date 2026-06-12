@@ -1,0 +1,235 @@
+:root {
+  --bg: #0d1b2a;
+  --bg2: #11263b;
+  --card: #16304a;
+  --card-soft: #1b3a59;
+  --line: #2a4d70;
+  --text: #eaf2f8;
+  --muted: #8fb0c9;
+  --accent: #38d39f;
+  --gold: #ffd166;
+  --red: #ef6f6c;
+  --blue: #5bc0eb;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%);
+  min-height: 100vh;
+  color: var(--text);
+}
+
+.hero {
+  text-align: center;
+  padding: 28px 16px 0;
+  background:
+    radial-gradient(ellipse at 20% -20%, rgba(56, 211, 159, .18), transparent 55%),
+    radial-gradient(ellipse at 80% -20%, rgba(91, 192, 235, .15), transparent 55%);
+}
+.hero h1 { font-size: 1.7rem; letter-spacing: 1px; }
+.subtitle { color: var(--muted); margin: 8px 0 18px; font-size: .92rem; }
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.tab {
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: .95rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tab:hover { color: var(--text); border-color: var(--accent); }
+.tab.active { background: var(--accent); color: #06281c; border-color: var(--accent); font-weight: 700; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 20px 14px 40px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+.card h2 { margin-bottom: 12px; font-size: 1.2rem; }
+.card h3 { margin: 16px 0 8px; font-size: 1.02rem; color: var(--blue); }
+
+/* ---------- 排行榜 ---------- */
+.podium { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px; }
+.podium .spot {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 22px;
+  text-align: center;
+  min-width: 130px;
+}
+.podium .spot.first { border-color: var(--gold); box-shadow: 0 0 18px rgba(255, 209, 102, .25); }
+.podium .medal { font-size: 1.8rem; }
+.podium .name { font-weight: 700; margin: 6px 0 2px; }
+.podium .pts { color: var(--gold); font-size: 1.3rem; font-weight: 800; }
+.podium .pts small { color: var(--muted); font-size: .7rem; font-weight: 400; }
+
+.bar-row { display: grid; grid-template-columns: 110px 1fr 52px; align-items: center; gap: 10px; margin: 8px 0; }
+.bar-row .bname { text-align: right; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { background: var(--bg); border-radius: 8px; height: 22px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--accent), var(--blue)); min-width: 2px; transition: width .5s; }
+.bar-row .bpts { font-weight: 700; color: var(--gold); }
+
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; font-size: .82rem; }
+tbody tr:hover { background: rgba(91, 192, 235, .06); }
+.table-wrap { overflow-x: auto; }
+
+/* ---------- 赛程&预测 ---------- */
+.stage-title {
+  margin: 26px 0 10px;
+  font-size: 1.1rem;
+  color: var(--gold);
+  border-left: 4px solid var(--gold);
+  padding-left: 10px;
+}
+.group-title { margin: 14px 0 6px; color: var(--blue); font-size: .98rem; }
+td.match-cell { text-align: left; }
+.vs { color: var(--muted); font-size: .8rem; padding: 0 4px; }
+.tbd { color: var(--muted); font-style: italic; }
+.res { font-weight: 800; color: var(--gold); }
+.res.pending { color: var(--muted); font-weight: 400; }
+
+.pred { display: inline-block; min-width: 38px; padding: 2px 7px; border-radius: 6px; font-weight: 600; }
+.pred.hit3 { background: rgba(56, 211, 159, .22); color: var(--accent); }
+.pred.hit1 { background: rgba(255, 209, 102, .18); color: var(--gold); }
+.pred.hit0 { background: rgba(239, 111, 108, .15); color: var(--red); }
+.pred.wait { background: rgba(143, 176, 201, .12); color: var(--muted); font-weight: 400; }
+.pred.empty { color: #44607a; background: none; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: .85rem; margin: 6px 0 2px; }
+
+/* ---------- 表单 ---------- */
+.form-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+.form-row label { color: var(--muted); font-size: .92rem; }
+input[type="text"], select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: .95rem;
+}
+input[type="text"]:focus, select:focus, input[type="number"]:focus { outline: 1px solid var(--accent); }
+input[type="number"], input.score {
+  width: 52px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 7px 6px;
+  font-size: .95rem;
+  text-align: center;
+}
+input.team-in { width: 110px; background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 7px 8px; font-size: .9rem; }
+
+.btn {
+  background: var(--accent);
+  color: #06281c;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: .98rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .1s, opacity .15s;
+}
+.btn:hover { opacity: .88; }
+.btn:active { transform: scale(.97); }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.btn.gold { background: var(--gold); color: #3a2c00; }
+
+.sticky-actions {
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(transparent, var(--bg) 30%);
+  padding: 16px 0 8px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.match-form-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 140px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 4px;
+  border-bottom: 1px solid rgba(42, 77, 112, .5);
+}
+.match-form-row .mid { font-size: .78rem; color: var(--muted); }
+.match-form-row .teams { font-size: .92rem; }
+.match-form-row .inputs { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+.match-form-row.played { opacity: .55; }
+.hint { color: var(--muted); font-size: .85rem; margin: 8px 0; line-height: 1.6; }
+
+textarea.export {
+  width: 100%;
+  height: 200px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font-family: Consolas, monospace;
+  font-size: .82rem;
+  margin-top: 10px;
+  display: none;
+}
+
+/* ---------- 规则 ---------- */
+.rules-list { list-style: none; }
+.rules-list li { margin: 10px 0; line-height: 1.7; }
+.rules-list.plain { list-style: disc inside; color: var(--text); }
+ol.rules-list.plain { list-style: decimal inside; }
+.pt { display: inline-block; min-width: 44px; text-align: center; border-radius: 6px; padding: 2px 8px; font-weight: 700; margin-right: 8px; }
+.pt-3 { background: rgba(56, 211, 159, .22); color: var(--accent); }
+.pt-1 { background: rgba(255, 209, 102, .18); color: var(--gold); }
+.pt-0 { background: rgba(239, 111, 108, .15); color: var(--red); }
+.pt-c { background: rgba(91, 192, 235, .18); color: var(--blue); }
+code { background: var(--bg); padding: 2px 6px; border-radius: 5px; font-size: .85em; color: var(--accent); }
+
+footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 20px 0 30px; }
+
+#toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--accent);
+  color: #06281c;
+  font-weight: 700;
+  padding: 12px 26px;
+  border-radius: 30px;
+  opacity: 0;
+  transition: all .3s;
+  pointer-events: none;
+  z-index: 99;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 640px) {
+  .hero h1 { font-size: 1.25rem; }
+  .bar-row { grid-template-columns: 80px 1fr 44px; }
+  .match-form-row { grid-template-columns: 44px 1fr 120px; }
+  th, td { padding: 6px 6px; font-size: .82rem; }
+}

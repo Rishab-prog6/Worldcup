@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wc-site",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "python -m http.server %PORT%"],
+      "autoPort": true
+    }
+  ]
+}
