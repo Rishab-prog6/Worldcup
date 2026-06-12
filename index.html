@@ -1,22 +1,23 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2026 世界杯预测大赛</title>
+  <title>2026 World Cup Prediction League</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
 </head>
 <body>
   <header class="hero">
-    <h1>⚽ 2026 世界杯预测大赛 🏆</h1>
-    <p class="subtitle">美加墨 · 6月11日 — 7月19日 · 48 队 104 场</p>
+    <h1 id="app-title">⚽ 2026 World Cup Prediction League 🏆</h1>
+    <p class="subtitle" id="app-subtitle">USA · Canada · Mexico · Jun 11 – Jul 19 · 48 teams · 104 matches</p>
     <nav class="tabs" id="tabs">
-      <button class="tab active" data-tab="board">🏆 排行榜</button>
-      <button class="tab" data-tab="matches">📅 赛程 &amp; 预测</button>
-      <button class="tab" data-tab="predict">✍️ 填写预测</button>
-      <button class="tab" data-tab="admin">🛠️ 录入赛果</button>
-      <button class="tab" data-tab="rules">📖 规则</button>
+      <button class="tab active" data-tab="board">🏆 Leaderboard</button>
+      <button class="tab" data-tab="matches">📅 Fixtures</button>
+      <button class="tab" data-tab="predict">✍️ My Predictions</button>
+      <button class="tab" data-tab="admin">🛠️ Enter Results</button>
+      <button class="tab" data-tab="rules">📖 Rules</button>
+      <button class="tab lang" id="lang-toggle" type="button">中文</button>
     </nav>
   </header>
 
@@ -25,39 +26,17 @@
     <section id="tab-matches" class="tab-panel"></section>
     <section id="tab-predict" class="tab-panel"></section>
     <section id="tab-admin" class="tab-panel"></section>
-    <section id="tab-rules" class="tab-panel">
-      <div class="card">
-        <h2>📖 奖金规则</h2>
-        <ul class="rules-list">
-          <li><span class="pt pt-3">+1元</span> 比分完全猜对（如预测 2-1，实际 2-1），奖金 +1 元</li>
-          <li><span class="pt pt-0">0元</span> 比分没对就没钱，猜对胜负也不算</li>
-        </ul>
-        <h3>淘汰赛说明</h3>
-        <ul class="rules-list plain">
-          <li>淘汰赛按「90 分钟 + 加时」结束时的比分计算，点球大战不计入比分。</li>
-          <li>例如预测 1-1（即认为会拖入点球），实际加时后 1-1，则比分全对 +1 元。</li>
-          <li>淘汰赛对阵确定后才开放预测，请及时来填。</li>
-        </ul>
-        <h3>怎么玩</h3>
-        <ol class="rules-list plain">
-          <li>在「填写预测」页下拉框选自己（仅限 RiT / ST / RT / ArP / AP / SP / NP 七人），填比分，点「生成 predictions.js」复制内容。</li>
-          <li>把内容发给管理员（或自己提交到仓库），替换 <code>data/predictions.js</code> 后页面自动更新。</li>
-          <li>可以一场一场提交：填几场交几场，没填的以后再来。<b>已提交的场次锁定不能改，已出赛果的场次不能再提交。</b></li>
-          <li>开赛后、管理员还没录比分前的空档请自觉别钻 😄，朋友间诚信第一。</li>
-          <li>管理员在「录入赛果」页维护真实比分、淘汰赛对阵和最终冠军。</li>
-        </ol>
-      </div>
-    </section>
+    <section id="tab-rules" class="tab-panel"></section>
   </main>
 
   <footer>
-    <p>纯静态页面 · 数据存在 <code>data/</code> 目录 · 可直接部署到 GitHub Pages</p>
+    <p id="app-footer"></p>
   </footer>
 
   <div id="toast"></div>
 
   <script>
-    // 数据文件加缓存戳，保证每次打开都加载最新的预测和赛果
+    // cache-bust the data files so visitors always load the latest predictions/results
     ["data/matches.js", "data/predictions.js", "data/results.js"].forEach(function (f) {
       document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>');
     });
