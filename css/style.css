@@ -88,7 +88,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 20px 14px 40px; }
 .bar-row .bname { text-align: right; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-track { background: var(--bg); border-radius: 8px; height: 22px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--accent), var(--blue)); min-width: 2px; transition: width .5s; }
+.bar-fill.neg { background: linear-gradient(90deg, var(--red), #b03e3b); }
 .bar-row .bpts { font-weight: 700; color: var(--gold); }
+.bar-row .bpts.neg { color: var(--red); }
 
 table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 th, td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }

@@ -3,7 +3,9 @@
   "use strict";
 
   // ===== Scoring (edit here; unit = RMB) =====
-  var PT_EXACT = 1; // exact score → +1 RMB, anything else → 0
+  // Exact score → every OTHER player pays the hitter this amount.
+  // Leaderboard shows each player's net balance (can go negative).
+  var PT_EXACT = 1;
 
   // ===== Fixed roster =====
   var PLAYERS = ["RiT", "ST", "RT", "ArP", "AP", "SP", "NP"];
@@ -45,10 +47,10 @@
       stage_qf: "Quarter-finals", stage_sf: "Semi-finals", stage_third: "Third-place Match", stage_final: "Final",
       unit: "RMB",
       board_empty: "No predictions yet — head to “My Predictions” and submit the first one!",
-      bars_title: "Winnings (RMB)",
+      bars_title: "Net balance (RMB)",
       detail_title: "Details ({a} / {b} played)",
-      th_rank: "Rank", th_player: "Player", th_money: "Winnings (RMB)", th_exact: "Exact scores", th_predicted: "Predicted",
-      legend: 'Legend: <span class="pred hit3">2-1</span> exact score +1 RMB <span class="pred hit0">0-2</span> miss <span class="pred wait">3-1</span> not played yet',
+      th_rank: "Rank", th_player: "Player", th_money: "Net (RMB)", th_exact: "Exact scores", th_predicted: "Predicted",
+      legend: 'Legend: <span class="pred hit3">2-1</span> exact — everyone else pays them 1 RMB <span class="pred hit0">0-2</span> miss <span class="pred wait">3-1</span> not played yet',
       th_no: "#", th_date: "Date", th_fixture: "Fixture", th_result: "Result",
       pending: "–", tbd: "TBD",
       group_title: "Group {g}",
@@ -73,8 +75,9 @@
       rules_html:
         '<div class="card"><h2>📖 Rules</h2>' +
         '<ul class="rules-list">' +
-        '<li><span class="pt pt-3">+1 RMB</span> Exact score (you said 2-1, it ended 2-1)</li>' +
-        '<li><span class="pt pt-0">0</span> Anything else — even the right winner with the wrong score</li>' +
+        '<li><span class="pt pt-3">+1 each</span> Exact score (you said 2-1, it ended 2-1) — <b>every other player pays you 1 RMB</b> (with 7 players that\'s +6)</li>' +
+        '<li><span class="pt pt-0">pay up</span> Miss — you pay 1 RMB to each player who nailed that match; the right winner with the wrong score counts as a miss too</li>' +
+        '<li>The leaderboard shows everyone\'s net balance, so it can go negative 📉</li>' +
         "</ul>" +
         "<h3>Knockout rounds</h3>" +
         '<ul class="rules-list plain">' +
@@ -101,10 +104,10 @@
       stage_qf: "1/4决赛", stage_sf: "半决赛", stage_third: "季军赛", stage_final: "决赛",
       unit: "元",
       board_empty: "还没有任何预测数据，去「填写预测」页提交第一份吧！",
-      bars_title: "奖金对比（元）",
+      bars_title: "净收支（元）",
       detail_title: "明细（已完赛 {a} / {b} 场）",
-      th_rank: "排名", th_player: "玩家", th_money: "奖金(元)", th_exact: "比分全对", th_predicted: "已预测场次",
-      legend: '图例：<span class="pred hit3">2-1</span> 比分全对 +1元 <span class="pred hit0">0-2</span> 没猜中 <span class="pred wait">3-1</span> 未开赛',
+      th_rank: "排名", th_player: "玩家", th_money: "净收支(元)", th_exact: "比分全对", th_predicted: "已预测场次",
+      legend: '图例：<span class="pred hit3">2-1</span> 比分全对·其他每人给他1元 <span class="pred hit0">0-2</span> 没猜中 <span class="pred wait">3-1</span> 未开赛',
       th_no: "场次", th_date: "日期", th_fixture: "对阵", th_result: "赛果",
       pending: "未赛", tbd: "待定",
       group_title: "{g} 组",
@@ -127,8 +130,9 @@
       rules_html:
         '<div class="card"><h2>📖 奖金规则</h2>' +
         '<ul class="rules-list">' +
-        '<li><span class="pt pt-3">+1元</span> 比分完全猜对（如预测 2-1，实际 2-1），奖金 +1 元</li>' +
-        '<li><span class="pt pt-0">0元</span> 其余情况都没钱，只猜对胜负也不算</li>' +
+        '<li><span class="pt pt-3">每人+1</span> 比分完全猜对（如预测 2-1，实际 2-1）——<b>其他每个人都要给你 1 元</b>（7 人局就是 +6 元）</li>' +
+        '<li><span class="pt pt-0">掏钱</span> 没猜中——这场谁猜中了你就给谁 1 元；只猜对胜负也算没中</li>' +
+        "<li>排行榜显示每个人的净收支，所以可能是负数 📉</li>" +
         "</ul>" +
         "<h3>淘汰赛说明</h3>" +
         '<ul class="rules-list plain">' +
@@ -214,16 +218,27 @@
 
   // ===== Leaderboard =====
   function computeBoard() {
-    return PLAYERS.map(function (name) {
-      var exact = 0, predicted = 0;
-      MATCHES.forEach(function (m) {
-        var pred = predOf(name, m);
-        if (pred) predicted++;
-        if (isExact(pred, resultOf(m))) exact++;
+    var bal = {}, exact = {}, predicted = {};
+    PLAYERS.forEach(function (n) { bal[n] = 0; exact[n] = 0; predicted[n] = 0; });
+    MATCHES.forEach(function (m) {
+      var res = resultOf(m);
+      PLAYERS.forEach(function (n) { if (predOf(n, m)) predicted[n]++; });
+      if (!res) return;
+      // every other player pays each hitter
+      var hitters = PLAYERS.filter(function (n) { return isExact(predOf(n, m), res); });
+      hitters.forEach(function (h) {
+        exact[h]++;
+        PLAYERS.forEach(function (p) {
+          if (p === h) return;
+          bal[h] += PT_EXACT;
+          bal[p] -= PT_EXACT;
+        });
       });
-      return { name: name, total: exact * PT_EXACT, exact: exact, predicted: predicted };
+    });
+    return PLAYERS.map(function (name) {
+      return { name: name, total: bal[name], exact: exact[name], predicted: predicted[name] };
     }).sort(function (a, b) {
-      return b.total - a.total || b.predicted - a.predicted || a.name.localeCompare(b.name);
+      return b.total - a.total || b.exact - a.exact || a.name.localeCompare(b.name);
     });
   }
 
@@ -242,11 +257,12 @@
         '<div class="pts">' + p.total + ' <small>' + t("unit") + '</small></div></div>';
     }).join("") + "</div>";
 
-    var max = Math.max(board[0].total, 1);
+    var maxAbs = Math.max.apply(null, board.map(function (p) { return Math.abs(p.total); }).concat([1]));
     var bars = '<div class="card"><h2>' + t("bars_title") + "</h2>" + board.map(function (p) {
+      var neg = p.total < 0;
       return '<div class="bar-row"><div class="bname">' + esc(p.name) + '</div>' +
-        '<div class="bar-track"><div class="bar-fill" style="width:' + Math.round(p.total / max * 100) + '%"></div></div>' +
-        '<div class="bpts">' + p.total + "</div></div>";
+        '<div class="bar-track"><div class="bar-fill' + (neg ? " neg" : "") + '" style="width:' + Math.round(Math.abs(p.total) / maxAbs * 100) + '%"></div></div>' +
+        '<div class="bpts' + (neg ? " neg" : "") + '">' + p.total + "</div></div>";
     }).join("") + "</div>";
 
     var finished = MATCHES.filter(function (m) { return resultOf(m); }).length;
