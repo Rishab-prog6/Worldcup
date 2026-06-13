@@ -681,6 +681,25 @@
     renderAll();
   });
 
+  // ===== Auto-refresh =====
+  // Re-pull from Supabase periodically and when the tab regains focus, so the
+  // board/fixtures stay live without a manual reload. Skip while the user is
+  // typing, or on the admin tab (unsaved score inputs aren't draft-backed).
+  function refreshBlocked() {
+    var a = document.activeElement;
+    if (a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return true;
+    if ($("#tab-admin").classList.contains("active")) return true;
+    return false;
+  }
+  function softRefresh() {
+    if (refreshBlocked()) return;
+    fetchData().then(renderAll, function () {});
+  }
+  setInterval(softRefresh, 30000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) softRefresh();
+  });
+
   // ===== Boot =====
   $("#tab-board").innerHTML = '<div class="card"><p class="hint">' + t("loading") + "</p></div>";
   renderAll();
