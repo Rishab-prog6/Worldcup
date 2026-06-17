@@ -70,8 +70,8 @@
       predict_hint: "Pick your name, fill in any matches you like and hit <b>🚀 Submit</b> — done, no account needed. " +
         "Whatever you fill in is what you submit; the rest can wait for another day. " +
         "🔒 Submitted matches are locked for good — the database refuses any change; " +
-        "⛔ matches with a recorded result can no longer be submitted. Drafts auto-save in this browser.",
-      mark_submitted: " · 🔒Submitted", mark_finished: " · ⛔Finished",
+        "⛔ once a match kicks off (Beijing time shown) it closes automatically — no more submissions, no peeking at the live score. Drafts auto-save in this browser.",
+      mark_submitted: " · 🔒Submitted", mark_finished: " · ⛔Finished", mark_started: " · ⛔Kicked off",
       btn_submit: "🚀 Submit", btn_clear_draft: "Clear draft",
       toast_pick_name: "Pick your name first", toast_nothing: "Nothing new to submit",
       toast_submitting: "Submitting…",
@@ -137,8 +137,8 @@
       who_label: "我的名字", who_placeholder: "— 我是谁 —",
       predict_hint: "选自己的名字，想填哪场填哪场，点 <b>🚀 提交</b> 即可——不需要注册任何账号。" +
         "填了就能交，没填的以后再来。🔒 已提交的场次永久锁定，数据库直接拒绝修改；" +
-        "⛔ 已出赛果的场次不能再提交。草稿自动存在本机浏览器。",
-      mark_submitted: " · 🔒已提交", mark_finished: " · ⛔已结束",
+        "⛔ 比赛一开球（显示北京时间）就自动锁定，不能再提交，杜绝看着直播下注。草稿自动存在本机浏览器。",
+      mark_submitted: " · 🔒已提交", mark_finished: " · ⛔已结束", mark_started: " · ⛔已开赛",
       btn_submit: "🚀 提交", btn_clear_draft: "清空草稿",
       toast_pick_name: "请先选择你是谁", toast_nothing: "没有新的预测可提交",
       toast_submitting: "提交中…",
@@ -189,10 +189,23 @@
   function tn(team) { return LANG === "zh" ? (TEAM_ZH[team] || team) : team; }
 
   var MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  function dateText(d) {
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  // a match is "started" once its kickoff time has passed (predictions then close)
+  function started(m) {
+    return m.kickoff ? Date.now() >= new Date(m.kickoff).getTime() : false;
+  }
+  function dateText(m) {
+    if (m.kickoff) {
+      // show in Beijing time (UTC+8); read UTC fields of the shifted instant
+      var b = new Date(new Date(m.kickoff).getTime() + 8 * 3600 * 1000);
+      var mo = b.getUTCMonth() + 1, day = b.getUTCDate();
+      var time = pad2(b.getUTCHours()) + ":" + pad2(b.getUTCMinutes());
+      return LANG === "zh" ? (mo + "月" + day + "日 " + time) : (MONTHS_EN[mo - 1] + " " + day + " " + time);
+    }
+    var d = m.date;
     if (LANG === "zh") return d;
-    var m = /(\d+)月(\d+)日/.exec(d || "");
-    return m ? MONTHS_EN[+m[1] - 1] + " " + m[2] : d;
+    var mt = /(\d+)月(\d+)日/.exec(d || "");
+    return mt ? MONTHS_EN[+mt[1] - 1] + " " + mt[2] : d;
   }
 
   function slotText(code) {
@@ -358,7 +371,7 @@
       var vs = tt.known
         ? esc(tn(tt.home)) + ' <span class="vs">vs</span> ' + esc(tn(tt.away))
         : '<span class="tbd">' + esc(labelOf(m)) + "</span>";
-      return "<tr><td>" + m.id + "</td><td>" + esc(dateText(m.date)) + '</td><td class="match-cell">' + vs + "</td>" +
+      return "<tr><td>" + m.id + "</td><td>" + esc(dateText(m)) + '</td><td class="match-cell">' + vs + "</td>" +
         '<td class="res' + (res ? "" : " pending") + '">' + (res ? res[0] + "-" + res[1] : t("pending")) + "</td>" +
         PLAYERS.map(function (p) { return "<td>" + predCell(p, m) + "</td>"; }).join("") + "</tr>";
     }).join("");
@@ -414,12 +427,13 @@
         var tt = teamsOf(m);
         var sub = predOf(name, m);   // already submitted → locked
         var played = !!resultOf(m);  // result recorded → closed
-        var locked = !!sub || played;
-        var v = sub || (!played && draft.scores && draft.scores[m.id]) || ["", ""];
-        var mark = sub ? t("mark_submitted") : (played ? t("mark_finished") : "");
+        var live = started(m);       // kickoff passed → closed
+        var locked = !!sub || played || live;
+        var v = sub || (!locked && draft.scores && draft.scores[m.id]) || ["", ""];
+        var mark = sub ? t("mark_submitted") : (played ? t("mark_finished") : (live ? t("mark_started") : ""));
         var dis = locked ? " disabled" : "";
         html += '<div class="match-form-row' + (locked ? " played" : "") + '">' +
-          '<span class="mid">#' + m.id + " " + esc(dateText(m.date)) + mark + "</span>" +
+          '<span class="mid">#' + m.id + " " + esc(dateText(m)) + mark + "</span>" +
           '<span class="teams">' + (tt.known ? esc(tn(tt.home)) + ' <span class="vs">vs</span> ' + esc(tn(tt.away))
             : '<span class="tbd">' + esc(labelOf(m)) + "</span>") + "</span>" +
           '<span class="inputs"><input class="score" type="number" min="0" max="20" data-mid="' + m.id + '" data-side="0" value="' + v[0] + '"' + dis + ">" +
@@ -565,7 +579,7 @@
             ' <span class="tbd" style="font-size:.78rem">' + esc(labelOf(m)) + "</span></span>";
         }
         html += '<div class="match-form-row">' +
-          '<span class="mid">#' + m.id + " " + esc(dateText(m.date)) + "</span>" + teamsHtml +
+          '<span class="mid">#' + m.id + " " + esc(dateText(m)) + "</span>" + teamsHtml +
           '<span class="inputs"><input class="score rscore" type="number" min="0" max="20" data-mid="' + m.id + '" data-side="0" value="' + r[0] + '">' +
           '<span class="vs">:</span>' +
           '<input class="score rscore" type="number" min="0" max="20" data-mid="' + m.id + '" data-side="1" value="' + r[1] + '"></span></div>';
