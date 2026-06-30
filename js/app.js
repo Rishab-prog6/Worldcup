@@ -590,38 +590,36 @@
     html += '<div class="sticky-actions"><button class="btn gold" id="btn-save-res">' + t("btn_save_res") + "</button></div>";
     el.innerHTML = html;
 
+    // Only send matches the admin actually edited — keeps the payload tiny so the
+    // save survives a flaky connection to Supabase (full re-send used to time out).
+    var dirty = {};
+    el.addEventListener("input", function (e) {
+      if (e.target.classList.contains("rscore") || e.target.classList.contains("team-in")) {
+        dirty[e.target.dataset.mid] = true;
+      }
+    });
+
     $("#btn-logout").onclick = function () {
       sessionStorage.removeItem(TOKEN_KEY);
       renderAdmin();
     };
 
     $("#btn-save-res").onclick = function () {
-      var byId = {};
-      el.querySelectorAll("input.rscore").forEach(function (inp) {
-        if (inp.value === "") return;
-        var mid = inp.dataset.mid;
-        byId[mid] = byId[mid] || {};
-        byId[mid][+inp.dataset.side === 0 ? "home" : "away"] = Math.max(0, parseInt(inp.value, 10) || 0);
-      });
-      var teamsById = {};
-      el.querySelectorAll("input.team-in").forEach(function (inp) {
-        var v = inp.value.trim();
-        if (!v) return;
-        var mid = inp.dataset.mid;
-        teamsById[mid] = teamsById[mid] || {};
-        teamsById[mid][+inp.dataset.side === 0 ? "team_home" : "team_away"] = v;
-      });
-
       var rows = [];
-      var ids = {};
-      Object.keys(byId).forEach(function (k) { ids[k] = true; });
-      Object.keys(teamsById).forEach(function (k) { ids[k] = true; });
-      Object.keys(ids).forEach(function (k) {
-        var row = { match_id: +k };
-        var sc = byId[k];
-        if (sc && sc.home != null && sc.away != null) { row.home = sc.home; row.away = sc.away; }
-        var tm = teamsById[k];
-        if (tm && tm.team_home && tm.team_away) { row.team_home = tm.team_home; row.team_away = tm.team_away; }
+      Object.keys(dirty).forEach(function (mid) {
+        var row = { match_id: +mid };
+        var h = el.querySelector('input.rscore[data-mid="' + mid + '"][data-side="0"]');
+        var a = el.querySelector('input.rscore[data-mid="' + mid + '"][data-side="1"]');
+        if (h && a && h.value !== "" && a.value !== "") {
+          row.home = Math.max(0, parseInt(h.value, 10) || 0);
+          row.away = Math.max(0, parseInt(a.value, 10) || 0);
+        }
+        var th = el.querySelector('input.team-in[data-mid="' + mid + '"][data-side="0"]');
+        var ta = el.querySelector('input.team-in[data-mid="' + mid + '"][data-side="1"]');
+        if (th && ta && th.value.trim() && ta.value.trim()) {
+          row.team_home = th.value.trim();
+          row.team_away = ta.value.trim();
+        }
         if (row.home != null || row.team_home) rows.push(row);
       });
       if (!rows.length) { toast(t("toast_nothing_save")); return; }
