@@ -35,7 +35,12 @@
 
   <div id="toast"></div>
 
-  <script src="data/matches.js"></script>
-  <script src="js/app.js"></script>
+  <script>
+    // cache-bust so schedule/logic updates show without a manual hard-refresh
+    // (app.js depends on WC_MATCHES, so matches.js must load first — document.write keeps order)
+    ["data/matches.js", "js/app.js"].forEach(function (f) {
+      document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>');
+    });
+  </script>
 </body>
 </html>
