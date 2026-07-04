@@ -97,15 +97,15 @@ window.WC_MATCHES = [
   { id: 87, stage: "r32", kickoff: "2026-07-03T22:00:00Z", slots: ["1K", "3DEIJL"] },
   { id: 88, stage: "r32", kickoff: "2026-07-04T01:30:00Z", slots: ["2D", "2G"] },
 
-  // ---------- Round of 16 ----------
-  { id: 89, stage: "r16", date: "7月4日", slots: ["W74", "W77"] },
-  { id: 90, stage: "r16", date: "7月4日", slots: ["W73", "W75"] },
-  { id: 91, stage: "r16", date: "7月5日", slots: ["W76", "W78"] },
-  { id: 92, stage: "r16", date: "7月6日", slots: ["W79", "W80"] },
-  { id: 93, stage: "r16", date: "7月6日", slots: ["W83", "W84"] },
-  { id: 94, stage: "r16", date: "7月7日", slots: ["W81", "W82"] },
-  { id: 95, stage: "r16", date: "7月7日", slots: ["W86", "W88"] },
-  { id: 96, stage: "r16", date: "7月7日", slots: ["W85", "W87"] },
+  // ---------- Round of 16 (teams come from the DB) ----------
+  { id: 89, stage: "r16", kickoff: "2026-07-05T02:00:00Z", slots: ["W74", "W77"] },
+  { id: 90, stage: "r16", kickoff: "2026-07-04T22:00:00Z", slots: ["W73", "W75"] },
+  { id: 91, stage: "r16", kickoff: "2026-07-06T01:00:00Z", slots: ["W76", "W78"] },
+  { id: 92, stage: "r16", kickoff: "2026-07-06T00:00:00Z", slots: ["W79", "W80"] },
+  { id: 93, stage: "r16", kickoff: "2026-07-06T19:00:00Z", slots: ["W83", "W84"] },
+  { id: 94, stage: "r16", kickoff: "2026-07-07T00:00:00Z", slots: ["W81", "W82"] },
+  { id: 95, stage: "r16", kickoff: "2026-07-07T16:00:00Z", slots: ["W86", "W87"] },
+  { id: 96, stage: "r16", kickoff: "2026-07-07T20:00:00Z", slots: ["W85", "W88"] },
 
   // ---------- Quarter-finals ----------
   { id: 97,  stage: "qf", date: "7月9日",  slots: ["W89", "W90"] },
