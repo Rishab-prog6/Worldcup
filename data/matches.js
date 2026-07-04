@@ -98,9 +98,9 @@ window.WC_MATCHES = [
   { id: 88, stage: "r32", kickoff: "2026-07-04T01:30:00Z", slots: ["2D", "2G"] },
 
   // ---------- Round of 16 (teams come from the DB) ----------
-  { id: 89, stage: "r16", kickoff: "2026-07-05T02:00:00Z", slots: ["W74", "W77"] },
-  { id: 90, stage: "r16", kickoff: "2026-07-04T22:00:00Z", slots: ["W73", "W75"] },
-  { id: 91, stage: "r16", kickoff: "2026-07-06T01:00:00Z", slots: ["W76", "W78"] },
+  { id: 89, stage: "r16", kickoff: "2026-07-04T21:00:00Z", slots: ["W74", "W77"] },
+  { id: 90, stage: "r16", kickoff: "2026-07-04T17:00:00Z", slots: ["W73", "W75"] },
+  { id: 91, stage: "r16", kickoff: "2026-07-05T20:00:00Z", slots: ["W76", "W78"] },
   { id: 92, stage: "r16", kickoff: "2026-07-06T00:00:00Z", slots: ["W79", "W80"] },
   { id: 93, stage: "r16", kickoff: "2026-07-06T19:00:00Z", slots: ["W83", "W84"] },
   { id: 94, stage: "r16", kickoff: "2026-07-07T00:00:00Z", slots: ["W81", "W82"] },
