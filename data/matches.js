@@ -107,11 +107,11 @@ window.WC_MATCHES = [
   { id: 95, stage: "r16", kickoff: "2026-07-07T16:00:00Z", slots: ["W86", "W87"] },
   { id: 96, stage: "r16", kickoff: "2026-07-07T20:00:00Z", slots: ["W85", "W88"] },
 
-  // ---------- Quarter-finals ----------
-  { id: 97,  stage: "qf", date: "7月9日",  slots: ["W89", "W90"] },
-  { id: 98,  stage: "qf", date: "7月10日", slots: ["W93", "W94"] },
-  { id: 99,  stage: "qf", date: "7月11日", slots: ["W91", "W92"] },
-  { id: 100, stage: "qf", date: "7月12日", slots: ["W95", "W96"] },
+  // ---------- Quarter-finals (teams come from the DB) ----------
+  { id: 97,  stage: "qf", kickoff: "2026-07-09T20:00:00Z", slots: ["W89", "W90"] },
+  { id: 98,  stage: "qf", kickoff: "2026-07-10T19:00:00Z", slots: ["W93", "W94"] },
+  { id: 99,  stage: "qf", kickoff: "2026-07-11T21:00:00Z", slots: ["W91", "W92"] },
+  { id: 100, stage: "qf", kickoff: "2026-07-12T01:00:00Z", slots: ["W95", "W96"] },
 
   // ---------- Semi-finals ----------
   { id: 101, stage: "sf", date: "7月14日", slots: ["W97", "W98"] },
