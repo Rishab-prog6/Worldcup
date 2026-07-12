@@ -113,9 +113,9 @@ window.WC_MATCHES = [
   { id: 99,  stage: "qf", kickoff: "2026-07-11T21:00:00Z", slots: ["W91", "W92"] },
   { id: 100, stage: "qf", kickoff: "2026-07-12T01:00:00Z", slots: ["W95", "W96"] },
 
-  // ---------- Semi-finals ----------
-  { id: 101, stage: "sf", date: "7月14日", slots: ["W97", "W98"] },
-  { id: 102, stage: "sf", date: "7月15日", slots: ["W99", "W100"] },
+  // ---------- Semi-finals (teams come from the DB) ----------
+  { id: 101, stage: "sf", kickoff: "2026-07-14T19:00:00Z", slots: ["W97", "W98"] },
+  { id: 102, stage: "sf", kickoff: "2026-07-15T19:00:00Z", slots: ["W99", "W100"] },
 
   // ---------- Third place & Final ----------
   { id: 103, stage: "third", date: "7月18日", slots: ["L101", "L102"] },
